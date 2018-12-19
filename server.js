@@ -1,3 +1,4 @@
+// Remember to source paths.sh before running server
 var express = require('express');
 var app = express();
 var bodyParser = require('body-parser');
@@ -17,6 +18,19 @@ app.post('/file-upload', upload.single('file'), function (req, res) {
   console.log(req.file);
   res.send('Received file successfully');
 })
+
+app.get('/energy-eval', function(req, res) {
+  const spawn = require("child_process").spawn;
+  const orkaProcess = spawn('python',["vendor/orka/src/main.py"]);
+  orkaProcess.stdout.setEncoding('utf-8');
+  orkaProcess.stdout.on('data', function(data) {
+    console.log(data);
+  });
+  orkaProcess.on('close', function(exitCode) {
+    console.log("Orka process has finished");
+    res.send("Energy evaluation finished");
+  });
+});
 
 var server = app.listen(8081, function () {
    var host = server.address().address;
