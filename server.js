@@ -3,9 +3,9 @@ var express = require('express');
 var app = express();
 var bodyParser = require('body-parser');
 var multer  = require('multer')
-var storage = multer.diskStorage({
+var apkStorage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, 'uploads/')
+    cb(null, 'uploads/apps')
   },
   filename: function (req, file, cb) {
     let ext = ''; // set default extension (if any)
@@ -17,7 +17,21 @@ var storage = multer.diskStorage({
     cb(null, Date.now() + ext);
   }
 });
-var upload = multer({ storage: storage })
+var monkeyrunnerStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/monkeyrunner_scripts')
+  },
+  filename: function (req, file, cb) {
+    let ext = ''; 
+    if (file.originalname.split(".").length > 1) {
+      ext = file.originalname.substring(file.originalname.lastIndexOf('.'),
+               file.originalname.length);
+    }
+    cb(null, Date.now() + ext);
+  }
+});
+var apkUpload = multer({ storage: apkStorage })
+var monkeyrunerUpload = multer({ storage: monkeyrunnerStorage })
 var fs = require('fs');
 
 app.use((req, res, next) => {
@@ -28,8 +42,17 @@ app.use((req, res, next) => {
 });
 app.use(bodyParser.urlencoded({ extended: false }));
 
-app.post('/file-upload', upload.single('file'), function (req, res) {
-  console.log("Received a file upload POST request");
+app.post('/file-upload/apk', apkUpload.single('file'), function (req, res) {
+  console.log("Received an apk file upload POST request");
+  console.log(req.file);
+  res.send({
+    'message': 'Recieved file successfully',
+    'filename': req.file.filename
+  });
+})
+
+app.post('/file-upload/monkeyrunner', monkeyrunerUpload.single('file'), function (req, res) {
+  console.log("Received a monkeyrunner file upload POST request");
   console.log(req.file);
   res.send({
     'message': 'Recieved file successfully',
@@ -49,8 +72,9 @@ app.get('/energy-eval/:filename/:script', function(req, res) {
     return;
   }
   const spawn = require("child_process").spawn;
-  const orkaProcess = spawn('python',["vendor/orka/src/main.py", "--app", 
-    "uploads/"+req.params.filename]);
+  const orkaProcess = spawn('python',["vendor/orka/src/main.py", "--app",
+    "uploads/apps/"+req.params.filename, "--mr", 
+    "uploads/monkeyrunner_scripts/"+req.params.script]);
   orkaProcess.stdout.setEncoding('utf-8');
   orkaProcess.stdout.on('data', function(data) {
     console.log(data);
@@ -58,7 +82,7 @@ app.get('/energy-eval/:filename/:script', function(req, res) {
   orkaProcess.on('close', function(exitCode) {
     console.log("Orka process has finished");
     console.log(`Deleting apk file ${req.params.filename} ...`);
-    fs.unlink("uploads/"+req.params.filename, function (err) {
+    fs.unlink("uploads/apps/"+req.params.filename, function (err) {
       if (err) {
         res.send("An error occurred while trying to delete the apk file from server");
       } else {
