@@ -1,6 +1,7 @@
 // Remember to source paths.sh before running server
 var express = require('express');
 var app = express();
+var async = require('async');
 var bodyParser = require('body-parser');
 var multer  = require('multer')
 var apkStorage = multer.diskStorage({
@@ -72,8 +73,8 @@ app.get('/energy-eval/:filename/:script', function(req, res) {
     return;
   }
   const spawn = require("child_process").spawn;
-  const orkaProcess = spawn('python',["vendor/orka/src/main.py", "--app",
-    "uploads/apps/"+req.params.filename, "--mr", 
+  const orkaProcess = spawn('python',["vendor/orka/src/main.py","--skip-graph",
+    "--app", "uploads/apps/"+req.params.filename, "--mr",
     "uploads/monkeyrunner_scripts/"+req.params.script]);
   orkaProcess.stdout.setEncoding('utf-8');
   orkaProcess.stdout.on('data', function(data) {
@@ -81,14 +82,27 @@ app.get('/energy-eval/:filename/:script', function(req, res) {
   });
   orkaProcess.on('close', function(exitCode) {
     console.log("Orka process has finished");
-    console.log(`Deleting apk file ${req.params.filename} ...`);
-    fs.unlink("uploads/apps/"+req.params.filename, function (err) {
+    let files = [
+      "uploads/apps/"+req.params.filename,
+      "uploads/monkeyrunner_scripts/"+req.params.script
+    ];
+    async.each(files, function(file, callback) {
+      console.log("Deleting file " + file);
+      fs.unlink(file, function(err) {
+        if (!err) {
+          console.log("Deleted " + file);
+        }
+        callback(err);
+      });
+    }, function(err){
       if (err) {
-        res.send("An error occurred while trying to delete the apk file from server");
+        console.log(err);
+        res.send("Error occurred.");
       } else {
+        console.log("All files deleted successfully.");
         res.send("Energy evaluation finished");
       }
-    });
+    } );
   });
 });
 
