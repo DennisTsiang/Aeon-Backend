@@ -76,6 +76,10 @@ function getCSVData(emulator, appName, res) {
             callback(err);
           }
           console.log("hardware costs:\n"+data);
+          if (!data) {
+            callback("No hardware data found");
+            return;
+          }
           hardwareData = converter.convertCSVToArray(data.toString(), {
             header: false,
             type: 'array',
@@ -92,6 +96,10 @@ function getCSVData(emulator, appName, res) {
             callback(err);
           }
           console.log("routine costs:\n"+data);
+          if (!data) {
+            callback("No routine data found");
+            return;
+          }
           apiData = converter.convertCSVToArray(data.toString(), {
             header: false,
             type: 'array',
