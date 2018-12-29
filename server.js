@@ -8,6 +8,15 @@ var glob = require('glob');
 var spawn = require("child_process").spawn;
 var exec = require("child_process").exec;
 var converter = require('convert-csv-to-array');
+var db = require('./db');
+
+if (db.db) {
+  console.log("DB loaded.");
+} else {
+  console.log("DB null");
+}
+
+// Set upload locations
 var apkStorage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, 'uploads/apps')
@@ -65,7 +74,7 @@ app.post('/file-upload/monkeyrunner', monkeyrunerUpload.single('file'), function
   });
 })
 
-function getCSVData(emulator, appName, res) {
+function getCSVData(emulator, appName, res, category) {
   let hardwareData = null;
   let apiData = null;
   async.parallel([
@@ -120,11 +129,12 @@ function getCSVData(emulator, appName, res) {
           apiData: apiData,
         }
         res.send(csvData);
+        db.saveEnergyResults(csvData, category);
     }
   );
 }
 
-app.get('/energy-eval/:filename/:script', function(req, res) {
+app.get('/energy-eval/:filename/:script/:category', function(req, res) {
   const EMULATOR = "Nexus_5X_API_24";
   if (req.params.filename == null) {
     res.status(400);
@@ -136,9 +146,11 @@ app.get('/energy-eval/:filename/:script', function(req, res) {
     res.send("There was an error parsing the script parameter");
     return;
   }
+  console.log(`Received energy evaluation request for:\nFilename: ${req.params.filename}\nScript: ${req.params.script}\nCategory: ${req.params.category}\n`);
 
   let app = "uploads/apps/"+req.params.filename;
   let monkeyrunnerScript = "uploads/monkeyrunner_scripts/"+req.params.script;
+  let category = req.params.category;
   let appName = "";
 
   // Get package name
@@ -147,7 +159,7 @@ app.get('/energy-eval/:filename/:script', function(req, res) {
   if (AAPTS == null || AAPTS.length == 0) {
     console.log("Could not find aapt");
     res.status("500");
-    res.send("Could not find appt");
+    res.send("Could not find aapt");
     return;
   }
   AAPT = AAPTS[0];
@@ -192,7 +204,7 @@ app.get('/energy-eval/:filename/:script', function(req, res) {
           res.send("Could not retrieve appName");
           return;
         }
-        getCSVData(EMULATOR, appName, res);
+        getCSVData(EMULATOR, appName, res, category);
       }
     } );
   });
