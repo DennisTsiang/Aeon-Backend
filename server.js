@@ -9,6 +9,7 @@ var spawn = require("child_process").spawn;
 var exec = require("child_process").exec;
 var converter = require('convert-csv-to-array');
 var db = require('./db');
+var ratings = require('./ratings');
 
 if (db.db) {
   console.log("DB loaded.");
@@ -16,12 +17,7 @@ if (db.db) {
   console.log("DB null");
 }
 
-// Set upload locations
-var apkStorage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/apps')
-  },
-  filename: function (req, file, cb) {
+function filenameHandler(req, file, cb) {
     let ext = ''; // set default extension (if any)
     // checking if there is an extension or not
     if (file.originalname.split(".").length > 1) {
@@ -29,21 +25,23 @@ var apkStorage = multer.diskStorage({
                file.originalname.length);
     }
     cb(null, Date.now() + ext);
-  }
+}
+
+// Set upload locations
+var apkStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/apps')
+  },
+  filename: filenameHandler
 });
+
 var monkeyrunnerStorage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, 'uploads/monkeyrunner_scripts')
   },
-  filename: function (req, file, cb) {
-    let ext = '';
-    if (file.originalname.split(".").length > 1) {
-      ext = file.originalname.substring(file.originalname.lastIndexOf('.'),
-               file.originalname.length);
-    }
-    cb(null, Date.now() + ext);
-  }
+  filename: filenameHandler
 });
+
 var apkUpload = multer({ storage: apkStorage })
 var monkeyrunerUpload = multer({ storage: monkeyrunnerStorage })
 var fs = require('fs');
@@ -127,9 +125,23 @@ function getCSVData(emulator, appName, res, category) {
         let csvData = {
           hardwareData: hardwareData,
           apiData: apiData,
-        }
-        res.send(csvData);
-        db.saveEnergyResults(csvData, category);
+        };
+        db.getEnergyResultsByCategory(category)
+        .then(data => {
+          console.log("Successfully retrieved energy results");
+          ratings.processResults(data)
+          .then(() => {
+            res.send(csvData);
+            db.saveEnergyResults(csvData, category);
+          });
+        })
+        .catch(err => {
+          console.log(err);
+          console.log("Failed to get energy results.");
+          res.status(500);
+          res.send("Error retrieving energy results");
+          return;
+        });
     }
   );
 }

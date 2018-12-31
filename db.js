@@ -31,7 +31,14 @@ function saveEnergyResults(csvData, categoryValue) {
   });
 }
 
+function getEnergyResultsByCategory(categoryValue) {
+  let categoryMapping = categories.categoryMapping();
+  let table = categoryMapping[categoryValue];
+  return db.any('SELECT * FROM '+table)
+}
+
 module.exports = {
   db: db,
   saveEnergyResults: saveEnergyResults,
+  getEnergyResultsByCategory: getEnergyResultsByCategory,
 }

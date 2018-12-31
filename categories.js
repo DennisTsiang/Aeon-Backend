@@ -7,7 +7,7 @@ function categoryMapping() {
   let sortedCategories = categories.sort();
   let map = {};
   sortedCategories.forEach((category, index) => {
-    map[index] = category.replace(/ /g, "_");
+    map[index] = category.replace("& ", "").replace(/ /g, "_");
   });
   return map;
 }
