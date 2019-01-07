@@ -10,22 +10,28 @@ function processResults(data, newTestTotalEnergy) {
 function assignEfficiencyClasses(rows, numberOfClasses) {
   let total_energies = rows.map(row => row.total_hardware_energy +
     row.total_routine_energy);
-  let minEnergy = Math.min(total_energies);
-  let maxEnergy = Math.max(total_energies);
+  console.log(total_energies);
+  let minEnergy = Math.min(...total_energies);
+  let maxEnergy = Math.max(...total_energies);
   let range = maxEnergy - minEnergy;
   let width = range / numberOfClasses;
+  console.log("Max Energy: " + maxEnergy);
+  console.log("Min Energy: " + minEnergy);
+  console.log("Width: " + width);
   let labels = [];
   for (i=0; i < numberOfClasses; i++) {
     let ACharCode = 65;
     let label = String.fromCharCode(i + ACharCode);
     labels.push({label: label, lowerBound: minEnergy + i*width});
   }
+  console.log(labels);
   return labels;
 }
 
 function assignRating(labels, newTestTotalEnergy) {
   let index = 0;
   let currentLabel = labels[0];
+  console.log("New total energy: " + newTestTotalEnergy);
   while (index+1 < labels.length &&
          newTestTotalEnergy >= labels[index+1].lowerBound) {
     currentLabel = labels[index+1];
