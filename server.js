@@ -125,14 +125,25 @@ function getCSVData(emulator, appName, res, category) {
         let csvData = {
           hardwareData: hardwareData,
           apiData: apiData,
+          rating: null,
         };
+        let hardwareTotal = csvData.hardwareData
+          .map(csvPair => csvPair[1])
+          .reduce((x,y) => x+y, 0);
+        let routineTotal = csvData.apiData
+          .map(csvPair => csvPair[1])
+          .reduce((x,y) => x+y, 0);
+        console.log("hardware total:"+hardwareTotal);
+        console.log("routine total:"+routineTotal);
         db.getEnergyResultsByCategory(category)
         .then(data => {
           console.log("Successfully retrieved energy results");
-          ratings.processResults(data)
-          .then(() => {
+          ratings.processResults(data, hardwareTotal + routineTotal)
+          .then((rating) => {
+            console.log("Assigned new test rating: " + rating);
+            csvData.rating = rating;
             res.send(csvData);
-            db.saveEnergyResults(csvData, category);
+            db.saveEnergyResults(hardwareTotal, routineTotal, rating, category);
           });
         })
         .catch(err => {
