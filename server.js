@@ -62,6 +62,7 @@ app.use((req, res, next) => {
     next();
 });
 app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
 
 app.post('/file-upload/apk', apkUpload.single('file'), function (req, res) {
   console.log("Received an apk file upload POST request");
@@ -81,10 +82,9 @@ app.post('/file-upload/monkeyrunner', monkeyrunerUpload.single('file'), function
   });
 })
 
-app.get('/energy-eval/:filename/:script/:category', function(req, res) {
-//app.post('energy-eval/', function(req, res) {
-  //let parameters = req.body;
-  let parameters = req.params;
+app.post('/energy-eval/', function(req, res) {
+  let parameters = req.body;
+  console.log(parameters);
   let parametersValid = energyEvaluator.checkParameters(res, parameters);
   if (!parametersValid) {
     return;

@@ -13,6 +13,7 @@ function evaluateEnergy(res, parameters, db) {
   let app = "uploads/apps/"+parameters.filename;
   let monkeyrunnerScript = "uploads/monkeyrunner_scripts/"+parameters.script;
   let category = parameters.category;
+  let method = parameters.method;
 
   // Get package name
   let appName = extractPackageName(app);
@@ -23,7 +24,7 @@ function evaluateEnergy(res, parameters, db) {
   }
 
   // Execute Orka Process
-  executeOrkaProcess(db, res, appName, app, monkeyrunnerScript, category);
+  executeOrkaProcess(db, res, appName, method, app, monkeyrunnerScript, category);
 }
 
 
@@ -112,7 +113,7 @@ function getCSVData(db, res, emulator, appName, category) {
   );
 }
 
-function executeOrkaProcess(db, res, appName, app, monkeyrunnerScript, category) {
+function executeOrkaProcess(db, res, appName, method, app, monkeyrunnerScript, category) {
   const orkaProcess = spawn('python',["vendor/orka/src/main.py","--skip-graph",
     "--method", "droidmate", "--app", app, "--mr", monkeyrunnerScript]);
   orkaProcess.stdout.setEncoding('utf-8');
@@ -124,6 +125,9 @@ function executeOrkaProcess(db, res, appName, app, monkeyrunnerScript, category)
 
     // Delete files
     let files = [app, monkeyrunnerScript];
+    if (method != "Monkeyrunner") {
+      files.pop();
+    }
     async.each(files, function(file, callback) {
       console.log("Deleting file " + file);
       fs.unlink(file, function(err) {
@@ -151,12 +155,14 @@ function executeOrkaProcess(db, res, appName, app, monkeyrunnerScript, category)
 }
 
 function checkParameters(res, parameters) {
-  return checkParameter(res, parameters.filename,
+  return checkParameter(res, parameters['filename'],
     "There was an error parsing the filename parameter") &&
-  checkParameter(res, parameters.script,
-    "There was an error parsing the script parameter") &&
-  checkParameter(res, parameters.category,
-    "There was an error parsing  the category parameter");
+  checkParameter(res, parameters['category'],
+    "There was an error parsing  the category parameter") &&
+  checkParameter(res, parameters['method'],
+    "There was an error parsing  the category parameter") &&
+  parameters['method'] == 'Monkeyrunner'? checkParameter(res, parameters['script'],
+    "There was an error parsing the script parameter"): true;
 }
 
 function checkParameter(res, parameter, nullMessage) {
