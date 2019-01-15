@@ -1,4 +1,5 @@
 // Remember to source paths.sh before running server
+require('dotenv').config();
 var express = require('express');
 var app = express();
 var async = require('async');
@@ -8,9 +9,9 @@ var glob = require('glob');
 var spawn = require("child_process").spawn;
 var exec = require("child_process").exec;
 var converter = require('convert-csv-to-array');
+var fs = require('fs');
 var db = require('./db');
-var ratings = require('./ratings');
-require('dotenv').config();
+var energyEvaluator = require('./energyEvaluator');
 
 // Check environmetal variables are loaded
 if (!process.env.ORKA_HOME) {
@@ -53,7 +54,6 @@ var monkeyrunnerStorage = multer.diskStorage({
 
 var apkUpload = multer({ storage: apkStorage })
 var monkeyrunerUpload = multer({ storage: monkeyrunnerStorage })
-var fs = require('fs');
 
 app.use((req, res, next) => {
     res.append('Access-Control-Allow-Origin', ['*']);
@@ -81,165 +81,17 @@ app.post('/file-upload/monkeyrunner', monkeyrunerUpload.single('file'), function
   });
 })
 
-function getCSVData(emulator, appName, res, category) {
-  let hardwareData = null;
-  let apiData = null;
-  async.parallel([
-    function (callback) {
-      fs.readFile("vendor/orka/results_"+emulator+"/"+appName+"/hardwareCosts.csv",
-        (err, data) => {
-          if (err) {
-            callback(err);
-          }
-          console.log("hardware costs:\n"+data);
-          if (!data) {
-            callback("No hardware data found");
-            return;
-          }
-          hardwareData = converter.convertCSVToArray(data.toString(), {
-            header: false,
-            type: 'array',
-            separator: ',',
-          });
-          callback(err);
-        }
-      );
-    },
-    function(callback) {
-      fs.readFile("vendor/orka/results_"+emulator+"/"+appName+"/routineCosts.csv",
-        (err, data) => {
-          if (err) {
-            callback(err);
-          }
-          console.log("routine costs:\n"+data);
-          if (!data) {
-            callback("No routine data found");
-            return;
-          }
-          apiData = converter.convertCSVToArray(data.toString(), {
-            header: false,
-            type: 'array',
-            separator: ',',
-          });
-          callback(err);
-        }
-      );
-    },
-  ], function(err) {
-        if (err) {
-          res.status(500);
-          res.send("Error retrieving csv data");
-          return;
-        }
-        let csvData = {
-          hardwareData: hardwareData,
-          apiData: apiData,
-          rating: null,
-        };
-        let hardwareTotal = csvData.hardwareData
-          .map(csvPair => csvPair[1])
-          .reduce((x,y) => x+y, 0);
-        let routineTotal = csvData.apiData
-          .map(csvPair => csvPair[1])
-          .reduce((x,y) => x+y, 0);
-        console.log("hardware total:"+hardwareTotal);
-        console.log("routine total:"+routineTotal);
-        db.getEnergyResultsByCategory(category)
-        .then(data => {
-          console.log("Successfully retrieved energy results");
-          ratings.processResults(data, hardwareTotal + routineTotal)
-          .then((rating) => {
-            console.log("Assigned new test rating: " + rating);
-            csvData.rating = rating;
-            res.send(csvData);
-            db.saveEnergyResults(hardwareTotal, routineTotal, rating, category);
-          });
-        })
-        .catch(err => {
-          console.log(err);
-          console.log("Failed to get energy results.");
-          res.status(500);
-          res.send("Error retrieving energy results");
-          return;
-        });
-    }
-  );
-}
-
 app.get('/energy-eval/:filename/:script/:category', function(req, res) {
-  const EMULATOR = "Nexus_5X_API_24";
-  if (req.params.filename == null) {
-    res.status(400);
-    res.send("There was an error parsing the filename parameter");
+//app.post('energy-eval/', function(req, res) {
+  //let parameters = req.body;
+  let parameters = req.params;
+  let parametersValid = energyEvaluator.checkParameters(res, parameters);
+  if (!parametersValid) {
     return;
   }
-  if (req.params.script == null) {
-    res.status(400);
-    res.send("There was an error parsing the script parameter");
-    return;
-  }
-  console.log(`Received energy evaluation request for:\nFilename: ${req.params.filename}\nScript: ${req.params.script}\nCategory: ${req.params.category}\n`);
+  console.log(`Received energy evaluation request for:\nFilename: ${parameters.filename}\nScript: ${parameters.script}\nCategory: ${parameters.category}\n`);
+  energyEvaluator.evaluateEnergy(res, parameters, db);
 
-  let app = "uploads/apps/"+req.params.filename;
-  let monkeyrunnerScript = "uploads/monkeyrunner_scripts/"+req.params.script;
-  let category = req.params.category;
-  let appName = "";
-
-  // Get package name
-  const ANDROID_HOME = process.env.ANDROID_HOME;
-  const AAPTS = glob.sync(ANDROID_HOME + '/build-tools/*/aapt');
-  if (AAPTS == null || AAPTS.length == 0) {
-    console.log("Could not find aapt");
-    res.status("500");
-    res.send("Could not find aapt");
-    return;
-  }
-  AAPT = AAPTS[0];
-  let cmd = AAPT + " dump badging " + app;
-  cmd += " |  grep -oP \"(?<=package: name=')\\S+\"";
-  let cmdProcess = exec(cmd, null, function(error, stdout, stderr) {
-    if (error) {
-      console.log(error);
-    } else {
-      appName = stdout.slice(0, -2);
-      console.log(appName);
-    }
-  });
-
-  //Execute the Orka process
-  const orkaProcess = spawn('python',["vendor/orka/src/main.py","--skip-graph",
-    "--method", "droidmate", "--app", app, "--mr", monkeyrunnerScript]);
-  orkaProcess.stdout.setEncoding('utf-8');
-  orkaProcess.stdout.on('data', function(data) {
-    console.log(data);
-  });
-  orkaProcess.on('close', function(exitCode) {
-    console.log("Orka process has finished");
-    let files = [app, monkeyrunnerScript];
-    async.each(files, function(file, callback) {
-      console.log("Deleting file " + file);
-      fs.unlink(file, function(err) {
-        if (!err) {
-          console.log("Deleted " + file);
-        }
-        callback(err);
-      });
-    }, function(err){
-      if (err) {
-        console.log(err);
-        res.send("Error occurred.");
-      } else {
-        console.log("All files deleted successfully.");
-        if (appName == "") {
-          //Something has gone wrong getting appName
-          res.status(500);
-          res.send("Could not retrieve appName");
-          return;
-        }
-        getCSVData(EMULATOR, appName, res, category);
-      }
-    } );
-  });
 });
 
 
@@ -247,4 +99,5 @@ var server = app.listen(8081, function () {
    var host = server.address().address;
    var port = server.address().port;
    console.log("Example app listening at http://%s:%s", host, port);
-})
+});
+server.timeout = 300000;
