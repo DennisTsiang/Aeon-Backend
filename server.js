@@ -10,6 +10,15 @@ var exec = require("child_process").exec;
 var converter = require('convert-csv-to-array');
 var db = require('./db');
 var ratings = require('./ratings');
+require('dotenv').config();
+
+// Check environmetal variables are loaded
+if (!process.env.ORKA_HOME) {
+  throw new Error("Need to export ORKA_HOME");
+}
+if (!process.env.JAVA_HOME) {
+  throw new Error("Need to export JAVA_HOME");
+}
 
 if (db.db) {
   console.log("DB loaded.");
@@ -199,7 +208,7 @@ app.get('/energy-eval/:filename/:script/:category', function(req, res) {
 
   //Execute the Orka process
   const orkaProcess = spawn('python',["vendor/orka/src/main.py","--skip-graph",
-    "--app", app, "--mr", monkeyrunnerScript]);
+    "--method", "droidmate", "--app", app, "--mr", monkeyrunnerScript]);
   orkaProcess.stdout.setEncoding('utf-8');
   orkaProcess.stdout.on('data', function(data) {
     console.log(data);
