@@ -3,18 +3,21 @@ var spawn = require("child_process").spawn;
 var execSync = require("child_process").execSync;
 var converter = require('convert-csv-to-array');
 var async = require('async');
-var fs = require('fs');
+var fs = require('fs-extra');
 var ratings = require('./ratings');
+var instrumention = require('./instrumentation');
 
 const EMULATOR = "Nexus_5X_API_24";
+const APP_DIRECTORY = "uploads/apps/";
+const SCRIPT_DIRECTORY = "uploads/monkeyrunner_scripts/";
 
 function evaluateEnergy(res, parameters, db) {
   // Parameters
-  let app = "uploads/apps/"+parameters.filename;
+  let app = APP_DIRECTORY+parameters.filename;
   let monkeyrunnerScript = ""
   let method = parameters.method;
   if (method == "Monkeyrunner") {
-    monkeyrunnerScript = "uploads/monkeyrunner_scripts/"+parameters.scriptname;
+    monkeyrunnerScript = SCRIPT_DIRECTORY+parameters.scriptname;
   }
   let category = parameters.category;
 
@@ -27,7 +30,7 @@ function evaluateEnergy(res, parameters, db) {
   }
 
   // Execute Orka Process
-  executeOrkaProcess(db, res, appName, method, app, monkeyrunnerScript, category);
+  setupOrkaParameters(db, res, appName, method, app, monkeyrunnerScript, category);
 }
 
 function getCSVData(db, res, emulator, appName, category) {
@@ -115,12 +118,55 @@ function getCSVData(db, res, emulator, appName, category) {
   );
 }
 
-function executeOrkaProcess(db, res, appName, method, app, monkeyrunnerScript, category) {
-  let orkaParameters = ["vendor/orka/src/main.py","--skip-graph",
-    "--method", method, "--app", app]
-  if (method == "Monkeyrunner") {
-    orkaParameters = orkaParameters.concat("--mr", monkeyrunnerScript)
-  }
+function setupOrkaParameters(
+    db, res, appName, method,
+    app, monkeyrunnerScript, category) {
+
+    let orkaParameters = ["vendor/orka/src/main.py","--skip-graph",
+      "--method", method, "--app"]
+    if (method == "Monkeyrunner") {
+      orkaParameters = orkaParameters.concat([app, "--mr", monkeyrunnerScript]);
+      executeOrkaProcess(db, res, appName, method, app, monkeyrunnerScript,
+        category);
+    } else if (method == "DroidMate-2") {
+      let instrumentationDir = "working/"+appName
+      if (fs.existsSync(instrumentationDir)) {
+        fs.removeSync(instrumentationDir);
+      }
+      fs.mkdirSync(instrumentationDir);
+      // Copy apk file over
+      appFilename= app.split("/").slice(-1)[0];
+      fs.copyFileSync(app, instrumentationDir+"/"+appFilename);
+      instrumentProcess = instrumention.instrumentAPKToIncludeStatementCoverage(
+          instrumentationDir,
+          appFilename,
+      );
+      instrumentProcess.on('close', (exitCode) => {
+        console.log("Finished instrumenting apk");
+        let instrumentedApkFilepath = instrumentationDir + "/" + 
+          appFilename.slice(0, -4) + "-instrumented.apk";
+        console.log("Looking for " + instrumentedApkFilepath);
+
+        // Check that the instrumented file exists
+        if (!fs.pathExistsSync(instrumentedApkFilepath)) {
+          msg = "Instrumented APK could not be found";
+          console.log(msg);
+          res.status(500);
+          res.send(msg);
+          return;
+        }
+
+        orkaParameters.push(instrumentedApkFilepath);
+        executeOrkaProcess(db, res, appName, method, app, monkeyrunnerScript,
+          category, orkaParameters);
+      });
+    }
+}
+
+function executeOrkaProcess(
+  db, res, appName, method,
+  app, monkeyrunnerScript, category, orkaParameters) {
+
   const orkaProcess = spawn('python', orkaParameters);
   orkaProcess.stdout.setEncoding('utf-8');
   orkaProcess.stdout.on('data', function(data) {
@@ -200,6 +246,7 @@ function extractPackageName(app) {
     console.log(error);
   };
 }
+
 
 module.exports = {
   evaluateEnergy: evaluateEnergy,
