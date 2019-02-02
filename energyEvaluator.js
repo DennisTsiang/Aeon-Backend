@@ -11,9 +11,12 @@ const EMULATOR = "Nexus_5X_API_24";
 function evaluateEnergy(res, parameters, db) {
   // Parameters
   let app = "uploads/apps/"+parameters.filename;
-  let monkeyrunnerScript = "uploads/monkeyrunner_scripts/"+parameters.script;
-  let category = parameters.category;
+  let monkeyrunnerScript = ""
   let method = parameters.method;
+  if (method == "Monkeyrunner") {
+    monkeyrunnerScript = "uploads/monkeyrunner_scripts/"+parameters.scriptname;
+  }
+  let category = parameters.category;
 
   // Get package name
   let appName = extractPackageName(app);
@@ -26,7 +29,6 @@ function evaluateEnergy(res, parameters, db) {
   // Execute Orka Process
   executeOrkaProcess(db, res, appName, method, app, monkeyrunnerScript, category);
 }
-
 
 function getCSVData(db, res, emulator, appName, category) {
   let hardwareData = null;
@@ -114,8 +116,12 @@ function getCSVData(db, res, emulator, appName, category) {
 }
 
 function executeOrkaProcess(db, res, appName, method, app, monkeyrunnerScript, category) {
-  const orkaProcess = spawn('python',["vendor/orka/src/main.py","--skip-graph",
-    "--method", "droidmate", "--app", app, "--mr", monkeyrunnerScript]);
+  let orkaParameters = ["vendor/orka/src/main.py","--skip-graph",
+    "--method", method, "--app", app]
+  if (method == "Monkeyrunner") {
+    orkaParameters = orkaParameters.concat("--mr", monkeyrunnerScript)
+  }
+  const orkaProcess = spawn('python', orkaParameters);
   orkaProcess.stdout.setEncoding('utf-8');
   orkaProcess.stdout.on('data', function(data) {
     console.log(data);
@@ -161,7 +167,8 @@ function checkParameters(res, parameters) {
     "There was an error parsing  the category parameter") &&
   checkParameter(res, parameters['method'],
     "There was an error parsing  the category parameter") &&
-  parameters['method'] == 'Monkeyrunner'? checkParameter(res, parameters['script'],
+  parameters['method'] == 'Monkeyrunner'?
+    checkParameter(res, parameters['scriptname'],
     "There was an error parsing the script parameter"): true;
 }
 
