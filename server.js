@@ -89,7 +89,7 @@ app.post('/energy-eval/', function(req, res) {
   if (!parametersValid) {
     return;
   }
-  console.log(`Received energy evaluation request for:\nFilename: ${parameters.filename}\nScript: ${parameters.script}\nCategory: ${parameters.category}\n`);
+  console.log(`Received energy evaluation request for:\nFilename: ${parameters.filename}\nScript: ${parameters.scriptname}\nCategory: ${parameters.category}\n`);
   energyEvaluator.evaluateEnergy(res, parameters, db);
 
 });

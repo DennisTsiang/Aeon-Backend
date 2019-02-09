@@ -1,0 +1,7 @@
+/home/den/Android/Sdk/tools/emulator -avd Nexus_5X_API_24 -port 5554 -wipe-data -no-boot-anim -no-snapshot-save
+
+$ANDROID_HOME/platform-tools/adb install ~/Documents/Individual_Project/Boostergy/server/uploads/apps/com.iven.musicplayergo_106.apk
+$ANDROID_HOME/platform-tools/adb shell dumpsys batterystats --reset
+$ANDROID_HOME/platform-tools/adb shell dumpsys battery set usb 1
+$ANDROID_HOME/platform-tools/adb shell dumpsys battery set usb 0
+

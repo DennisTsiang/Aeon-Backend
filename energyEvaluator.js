@@ -29,6 +29,7 @@ function evaluateEnergy(res, parameters, db) {
     return;
   }
 
+  console.log("Calling setupOrkaParameters");
   // Execute Orka Process
   setupOrkaParameters(db, res, appName, method, app, monkeyrunnerScript, category);
 }
@@ -83,6 +84,8 @@ function getCSVData(db, res, emulator, appName, category) {
           res.send("Error retrieving csv data");
           return;
         }
+        apiData.sort((a,b) => b[1] - a[1]);
+        hardwareData.sort((a,b) => b[1] - a[1]);
         let csvData = {
           hardwareData: hardwareData,
           apiData: apiData,
@@ -123,11 +126,11 @@ function setupOrkaParameters(
     app, monkeyrunnerScript, category) {
 
     let orkaParameters = ["vendor/orka/src/main.py","--skip-graph",
-      "--method", method, "--app"]
+      "--method", method, "--app"];
     if (method == "Monkeyrunner") {
       orkaParameters = orkaParameters.concat([app, "--mr", monkeyrunnerScript]);
       executeOrkaProcess(db, res, appName, method, app, monkeyrunnerScript,
-        category);
+        category, orkaParameters);
     } else if (method == "DroidMate-2") {
       let instrumentationDir = "working/"+appName
       if (fs.existsSync(instrumentationDir)) {
@@ -166,7 +169,7 @@ function setupOrkaParameters(
 function executeOrkaProcess(
   db, res, appName, method,
   app, monkeyrunnerScript, category, orkaParameters) {
-
+  console.log("Executing Orka process with parameters\n" + orkaParameters.join(" "));
   const orkaProcess = spawn('python', orkaParameters);
   orkaProcess.stdout.setEncoding('utf-8');
   orkaProcess.stdout.on('data', function(data) {
