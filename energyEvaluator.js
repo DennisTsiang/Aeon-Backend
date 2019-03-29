@@ -28,10 +28,14 @@ function evaluateEnergy(res, parameters, db) {
     res.send("Error occurred extracting package name");
     return;
   }
+  // Set this to false for now as currently ApkTool cannot decompile
+  // instrumented apk properly
+  let statementCoverage = false;
 
   console.log("Calling setupOrkaParameters");
   // Execute Orka Process
-  setupOrkaParameters(db, res, appName, method, app, monkeyrunnerScript, category);
+  setupOrkaParameters(db, res, appName, method, app, monkeyrunnerScript,
+    category, statementCoverage);
 }
 
 function getCSVData(db, res, emulator, appName, category) {
@@ -121,9 +125,41 @@ function getCSVData(db, res, emulator, appName, category) {
   );
 }
 
+function executeDroidMateInstrumentation(
+  db, res, appName, method,
+  app, monkeyrunnerScript, category, orkaParameters) {
+
+  let instrumentationDir = "working/"+appName
+  instrumention.createWorkingDir(instrumentationDir, app);
+
+  // Instrument APK with DroidMate
+  instrumentProcess = instrumention.instrumentAPKToIncludeStatementCoverage(
+      instrumentationDir,
+      appFilename,
+  );
+  instrumentProcess.on('close', (exitCode) => {
+    console.log("Finished instrumenting apk");
+    let instrumentedApkFilepath = instrumentationDir + "/" + 
+      appFilename.slice(0, -4) + "-instrumented.apk";
+    console.log("Looking for " + instrumentedApkFilepath);
+
+    // Check that the instrumented file exists
+    if (!fs.pathExistsSync(instrumentedApkFilepath)) {
+      msg = "Instrumented APK could not be found";
+      console.log(msg);
+      res.status(500);
+      res.send(msg);
+      return;
+    }
+    orkaParameters.push(instrumentedApkFilepath);
+    executeOrkaProcess(db, res, appName, method, app, monkeyrunnerScript,
+      category, orkaParameters);
+  });
+}
+
 function setupOrkaParameters(
     db, res, appName, method,
-    app, monkeyrunnerScript, category) {
+    app, monkeyrunnerScript, category, statementCoverage) {
 
     let orkaParameters = ["vendor/orka/src/main.py","--skip-graph",
       "--method", method, "--app"];
@@ -131,38 +167,13 @@ function setupOrkaParameters(
       orkaParameters = orkaParameters.concat([app, "--mr", monkeyrunnerScript]);
       executeOrkaProcess(db, res, appName, method, app, monkeyrunnerScript,
         category, orkaParameters);
-    } else if (method == "DroidMate-2") {
-      let instrumentationDir = "working/"+appName
-      if (fs.existsSync(instrumentationDir)) {
-        fs.removeSync(instrumentationDir);
-      }
-      fs.mkdirSync(instrumentationDir);
-      // Copy apk file over
-      appFilename= app.split("/").slice(-1)[0];
-      fs.copyFileSync(app, instrumentationDir+"/"+appFilename);
-      instrumentProcess = instrumention.instrumentAPKToIncludeStatementCoverage(
-          instrumentationDir,
-          appFilename,
-      );
-      instrumentProcess.on('close', (exitCode) => {
-        console.log("Finished instrumenting apk");
-        let instrumentedApkFilepath = instrumentationDir + "/" + 
-          appFilename.slice(0, -4) + "-instrumented.apk";
-        console.log("Looking for " + instrumentedApkFilepath);
-
-        // Check that the instrumented file exists
-        if (!fs.pathExistsSync(instrumentedApkFilepath)) {
-          msg = "Instrumented APK could not be found";
-          console.log(msg);
-          res.status(500);
-          res.send(msg);
-          return;
-        }
-
-        orkaParameters.push(instrumentedApkFilepath);
-        executeOrkaProcess(db, res, appName, method, app, monkeyrunnerScript,
-          category, orkaParameters);
-      });
+    } else if (method == "DroidMate-2" && statementCoverage) {
+      executeDroidMateInstrumentation(db, res, appName, method, app,
+        monkeyrunnerScript, category, orkaParameters);
+    } else if (method == "DroidMate-2" && !statementCoverage) {
+      orkaParameters.push(app);
+      executeOrkaProcess(db, res, appName, method, app, monkeyrunnerScript,
+        category, orkaParameters);
     }
 }
 

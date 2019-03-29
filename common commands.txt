@@ -1,7 +1,10 @@
-/home/den/Android/Sdk/tools/emulator -avd Nexus_5X_API_24 -port 5554 -wipe-data -no-boot-anim -no-snapshot-save
+/home/den/Android/Sdk/tools/emulator -avd Nexus_5X_API_24 -port 5554 -no-boot-anim -no-snapshot-save -snapshot testsong
 
 $ANDROID_HOME/platform-tools/adb install ~/Documents/Individual_Project/Boostergy/server/uploads/apps/com.iven.musicplayergo_106.apk
 $ANDROID_HOME/platform-tools/adb shell dumpsys batterystats --reset
 $ANDROID_HOME/platform-tools/adb shell dumpsys battery set usb 1
 $ANDROID_HOME/platform-tools/adb shell dumpsys battery set usb 0
 
+python vendor/orka/src/main.py --skip-graph --method Monkeyrunner --app uploads/apps/com.maxfour.music_8.apk --mr uploads/monkeyrunner_scripts/simplemusicplayer.txt
+
+ANDROID_HOME/platform-tools/adb/ shell "echo \$EPOCHREALTIME; cat proc/net/xt_qtaguid/stats" | awk "NR==1 || /u0a96/
