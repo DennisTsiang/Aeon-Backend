@@ -191,6 +191,13 @@ function executeOrkaProcess(
   orkaProcess.stdout.on('data', function(data) {
     console.log(data);
   });
+  orkaProcess.stderr.on('data', (data) => {
+    if (Buffer.isBuffer(data)) {
+      console.log(data.toString());
+    } else {
+      console.log(data);
+    }
+  });
   orkaProcess.on('close', function(exitCode) {
     console.log("Orka process has finished");
 
