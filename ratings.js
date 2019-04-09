@@ -1,15 +1,22 @@
 function processResults(data, newTestTotalEnergy) {
   return new Promise(resolve => {
-    let labels = assignEfficiencyClasses(data, 5);
+    let total_energies = getTotalEnergies(data);
+    let labels = assignEfficiencyClasses(total_energies, 5);
     let rating = assignRating(labels, newTestTotalEnergy);
-    resolve(rating);
+    let percentile = computePercentile(total_energies, newTestTotalEnergy);
+    resolve([rating, percentile]);
   });
 }
 
-// rows - the rows of the table
-function assignEfficiencyClasses(rows, numberOfClasses) {
-  let total_energies = rows.map(row => row.total_hardware_energy +
+// Return hardware + routine energies
+function getTotalEnergies(rows) {
+  return rows.map(row => row.total_hardware_energy +
     row.total_routine_energy);
+}
+
+// rows - the rows of the table
+function assignEfficiencyClasses(total_energies, numberOfClasses) {
+  console.log("Total Energies");
   console.log(total_energies);
   let minEnergy = Math.min(...total_energies);
   let maxEnergy = Math.max(...total_energies);
@@ -38,6 +45,18 @@ function assignRating(labels, newTestTotalEnergy) {
     index++;
   }
   return currentLabel.label;
+}
+
+function computePercentile(totalEnergies, newTestTotalEnergy) {
+  let index = 0;
+  sortedTotalEnergies = totalEnergies.sort();
+  while (index < sortedTotalEnergies.length &&
+    newTestTotalEnergy > sortedTotalEnergies[index]) {
+    index++;
+  }
+  let percentile = index/sortedTotalEnergies.length * 100;
+  console.log("Percentile: " + percentile.toFixed(1));
+  return percentile.toFixed(1);
 }
 
 module.exports = {

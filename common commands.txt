@@ -8,3 +8,6 @@ $ANDROID_HOME/platform-tools/adb shell dumpsys battery set usb 0
 python vendor/orka/src/main.py --skip-graph --method Monkeyrunner --app uploads/apps/com.maxfour.music_8.apk --mr uploads/monkeyrunner_scripts/simplemusicplayer.txt
 
 ANDROID_HOME/platform-tools/adb/ shell "echo \$EPOCHREALTIME; cat proc/net/xt_qtaguid/stats" | awk "NR==1 || /u0a96/
+
+Show tables
+\dt

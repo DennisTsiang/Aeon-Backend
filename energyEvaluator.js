@@ -46,7 +46,9 @@ function getCSVData(db, res, emulator, appName, category) {
       fs.readFile("vendor/orka/results_"+emulator+"/"+appName+"/hardwareCosts.csv",
         (err, data) => {
           if (err) {
+            console.log(err)
             callback(err);
+            return;
           }
           console.log("hardware costs:\n"+data);
           if (!data) {
@@ -94,6 +96,7 @@ function getCSVData(db, res, emulator, appName, category) {
           hardwareData: hardwareData,
           apiData: apiData,
           rating: null,
+          percentile: null,
         };
         let hardwareTotal = csvData.hardwareData
           .map(csvPair => csvPair[1])
@@ -107,9 +110,11 @@ function getCSVData(db, res, emulator, appName, category) {
         .then(data => {
           console.log("Successfully retrieved energy results");
           ratings.processResults(data, hardwareTotal + routineTotal)
-          .then((rating) => {
+          .then(result => {
+            let rating = result[0];
             console.log("Assigned new test rating: " + rating);
             csvData.rating = rating;
+            csvData.percentile = result[1];
             res.send(csvData);
             db.saveEnergyResults(hardwareTotal, routineTotal, rating, category);
           });
