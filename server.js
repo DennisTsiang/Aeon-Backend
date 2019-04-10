@@ -12,6 +12,7 @@ var converter = require('convert-csv-to-array');
 var fs = require('fs');
 var db = require('./db');
 var energyEvaluator = require('./energyEvaluator');
+var batchRequests = require('./batchRequests');
 
 // Check environmetal variables are loaded
 if (!process.env.ORKA_HOME) {
@@ -83,15 +84,7 @@ app.post('/file-upload/monkeyrunner', monkeyrunerUpload.single('file'), function
 })
 
 app.post('/energy-eval/', function(req, res) {
-  let parameters = req.body;
-  console.log(parameters);
-  let parametersValid = energyEvaluator.checkParameters(res, parameters);
-  if (!parametersValid) {
-    return;
-  }
-  console.log(`Received energy evaluation request for:\nFilename: ${parameters.filename}\nScript: ${parameters.scriptname}\nCategory: ${parameters.category}\n`);
-  energyEvaluator.evaluateEnergy(res, parameters, db);
-
+  batchRequests.evaluateAllEnergyRequests(res, db, req.body);
 });
 
 
