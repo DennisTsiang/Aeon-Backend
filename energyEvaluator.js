@@ -14,21 +14,17 @@ const SCRIPT_DIRECTORY = "uploads/monkeyrunner_scripts/";
 async function evaluateEnergy(res, parameters, db) {
   return new Promise(async (resolve, reject) => {
     // Parameters
-    let app = APP_DIRECTORY+parameters.filename;
+    let app = parameters.app;
     let monkeyrunnerScript = ""
     let method = parameters.method;
     if (method == "Monkeyrunner") {
       monkeyrunnerScript = SCRIPT_DIRECTORY+parameters.scriptname;
     }
     let category = parameters.category;
+    let avd = parameters.AVD.avdName;
+    let port = parameters.AVD.port;
+    let appName = parameters.appName;
 
-    // Get package name
-    let appName = extractPackageName(app);
-    if (appName == null) {
-      res.status("500");
-      res.send("Error occurred extracting package name");
-      return;
-    }
     // Set this to false for now as currently ApkTool cannot decompile
     // instrumented apk properly
     let statementCoverage = false;
@@ -36,10 +32,10 @@ async function evaluateEnergy(res, parameters, db) {
     console.log("Calling setupOrkaParameters");
     // Execute Orka Process
     let orkaParameters = await setupOrkaParameters(db, res, appName, method,
-      app, monkeyrunnerScript, category, statementCoverage);
+      app, monkeyrunnerScript, category, statementCoverage, avd, port);
     await executeOrkaProcess(db, res, appName, method, app, monkeyrunnerScript,
       category, orkaParameters);
-    let csvData = await getCSVData(db, res, EMULATOR, appName, category);
+    let csvData = await getCSVData(db, res, avd, appName, category);
     return resolve(csvData);
     //res.send(csvData);
   });
@@ -173,11 +169,11 @@ function executeDroidMateInstrumentation(
 }
 
 async function setupOrkaParameters(
-  db, res, appName, method,
-  app, monkeyrunnerScript, category, statementCoverage) {
+  db, res, appName, method, app, monkeyrunnerScript, category,
+  statementCoverage, avd, port) {
     return new Promise(async (resolve, reject) => {
       let orkaParameters = ["vendor/orka/src/main.py","--skip-graph",
-        "--method", method, "--app"];
+        "--method", method, "--avd", avd, "--port", port, "--app"];
       if (method == "Monkeyrunner") {
         orkaParameters = orkaParameters.concat([app, "--mr", monkeyrunnerScript]);
       } else if (method == "DroidMate-2" && statementCoverage) {
@@ -288,4 +284,5 @@ function extractPackageName(app) {
 module.exports = {
   evaluateEnergy: evaluateEnergy,
   checkParameters: checkParameters,
+  extractPackageName: extractPackageName,
 }
