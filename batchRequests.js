@@ -36,21 +36,30 @@ async function evaluateAllEnergyRequests(res, db, energyRequests) {
         let appended = await appendRequestToQueue(appName);
         console.log(`Appended: ${appended}`);
         if (!appended) {
+          // throw error in order to retry
+          // will be caught by retry method
           throw new Error();
         } else {
           console.log(requestsQueue);
-          let nextFreeAVD = await getNextFreeAVD();
-          parameters.AVD = nextFreeAVD;
-          parameters.appName = appName;
-          parameters.app = app;
-          console.log(parameters);
-          let csvData = await energyEvaluator.evaluateEnergy(res, parameters, db);
-          console.log("Finished Orka");
-          await appendNextFreeAVD(nextFreeAVD);
-          console.log("Finished appending next free AVD");
-          await removeRequestFromQueue(appName);
-          console.log("Finished removing from queue");
-          return resolve(csvData);
+          await retry(async bail => {
+            let nextFreeAVD = await getNextFreeAVD();
+            if (!nextFreeAVD) {
+              throw new Error();
+            }
+            parameters.AVD = nextFreeAVD;
+            parameters.appName = appName;
+            parameters.app = app;
+            console.log(parameters);
+            let csvData = await energyEvaluator.evaluateEnergy(res, parameters, db);
+            console.log("Finished Orka");
+            await appendNextFreeAVD(nextFreeAVD);
+            console.log("Finished appending next free AVD");
+            await removeRequestFromQueue(appName);
+            console.log("Finished removing from queue");
+            return resolve(csvData);
+          }, {
+            forever: true,
+          });
         }
       }, {
         forever: true,
@@ -91,6 +100,7 @@ function getAvailableAVDs() {
 
 function getNextFreeAVD() {
   return new Promise((resolve, reject) => {
+    // If it stop working try adding async back to this inner function
     mutexLockAVD.lock(() => {
       console.log(availableAVDs);
       let nextAVD = availableAVDs.shift();
