@@ -13,6 +13,7 @@ var fs = require('fs');
 var db = require('./db');
 var energyEvaluator = require('./energyEvaluator');
 var batchRequests = require('./batchRequests');
+var fileHandler = require('./fileHandler');
 
 // Check environmetal variables are loaded
 if (!process.env.ORKA_HOME) {
@@ -85,6 +86,12 @@ app.post('/file-upload/monkeyrunner', monkeyrunerUpload.single('file'), function
 
 app.post('/energy-eval/', function(req, res) {
   batchRequests.evaluateAllEnergyRequests(res, db, req.body);
+});
+
+app.post('/clear', async function(req, res) {
+  let filePaths = fileHandler.completePaths(req.body);
+  let deleteSuccess = await fileHandler.deleteFiles(filePaths);
+  res.send(deleteSuccess);
 });
 
 

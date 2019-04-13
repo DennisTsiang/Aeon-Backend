@@ -6,8 +6,8 @@ var async = require('async');
 var fs = require('fs-extra');
 var ratings = require('./ratings');
 var instrumention = require('./instrumentation');
+var fileHandler = require('./fileHandler');
 
-const EMULATOR = "Nexus_5X_API_24";
 const APP_DIRECTORY = "uploads/apps/";
 const SCRIPT_DIRECTORY = "uploads/monkeyrunner_scripts/";
 
@@ -212,28 +212,8 @@ function executeOrkaProcess(
       if (method != "Monkeyrunner") {
         files.pop();
       }
-      async.each(files, function(file, callback) {
-        console.log("Deleting file " + file);
-        fs.unlink(file, function(err) {
-          if (!err) {
-            console.log("Deleted " + file);
-          }
-          callback(err);
-        });
-      }, function(err){
-        if (err) {
-          console.log(err);
-          return reject(err)
-        } else {
-          console.log("All files deleted successfully.");
-          if (appName == "") {
-            //Something has gone wrong getting appName
-            res.status(500);
-            res.send("Could not retrieve appName");
-          }
-          return resolve();
-        }
-      });
+      fileHandler.deleteFiles(files);
+      return resolve();
     });
   });
 
