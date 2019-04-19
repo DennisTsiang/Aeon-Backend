@@ -35,7 +35,27 @@ function completePaths(filesObj) {
   return appsPaths.concat(scriptPaths);
 }
 
+function createWorkingDir(instrumentationDir) {
+  if (fs.existsSync(instrumentationDir)) {
+    fs.removeSync(instrumentationDir);
+  }
+  fs.mkdirSync(instrumentationDir);
+}
+
+async function retrieveFile(filepath) {
+  return new Promise(async (resolve, reject) => {
+    fs.readFile(filepath, (err, data) => {
+      fs.stat(filepath, (err, stats) => {
+        let size = stats.size;
+        return resolve([data, size]);
+      });
+    });
+  });
+}
+
 module.exports = {
   deleteFiles: deleteFiles,
-  completePaths: completePaths
+  completePaths: completePaths,
+  createWorkingDir: createWorkingDir,
+  retrieveFile: retrieveFile,
 }

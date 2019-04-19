@@ -25,14 +25,12 @@ async function evaluateEnergy(res, parameters, db) {
     let port = parameters.AVD.port;
     let appName = parameters.appName;
 
-    // Set this to false for now as currently ApkTool cannot decompile
-    // instrumented apk properly
-    let statementCoverage = false;
+    let statementCoverage = true;
 
     console.log("Calling setupOrkaParameters");
     // Execute Orka Process
-    let orkaParameters = await setupOrkaParameters(db, res, appName, method,
-      app, monkeyrunnerScript, category, statementCoverage, avd, port);
+    let orkaParameters = await setupOrkaParameters(appName, method,
+      app, monkeyrunnerScript, statementCoverage, avd, port);
     await executeOrkaProcess(db, res, appName, method, app, monkeyrunnerScript,
       category, orkaParameters);
     let csvData = await getCSVData(db, res, avd, appName, category);
@@ -45,6 +43,8 @@ function getCSVData(db, res, emulator, appName, category) {
   return new Promise((resolve, reject) => {
     let hardwareData = null;
     let apiData = null;
+    let totalCoverage = null;
+    let reportFilename = null;
     async.parallel([
       function (callback) {
         fs.readFile("vendor/orka/results_"+emulator+"/"+appName+"/hardwareCosts.csv",
@@ -89,6 +89,27 @@ function getCSVData(db, res, emulator, appName, category) {
           }
         );
       },
+      function(callback) {
+        fs.readFile("vendor/orka/results_"+emulator+"/"+appName+"/"+appName+
+          "/report/total_coverage.txt",
+          (err, data) => {
+            if (err || !data) {
+              console.log("No coverage data found")
+              callback();
+              return;
+            }
+            totalCoverage = data.toString().trim();
+            let archiveFilename = appName + Date.now() + ".tar.gz";
+            let output = `reports/${archiveFilename}`;
+            cmd = `tar -zcvf ${archiveFilename} -C vendor/orka/results_` +
+                  `${emulator}/${appName}/${appName}/ report ` +
+                  `&& mv ${archiveFilename} ${output}`;
+            console.log("Running cmd: " + cmd);
+            let stdout = execSync(cmd);
+            reportFilename = archiveFilename;
+            callback();
+          })
+      },
     ], function(err) {
           if (err) {
             res.status(500);
@@ -102,6 +123,8 @@ function getCSVData(db, res, emulator, appName, category) {
             apiData: apiData,
             rating: null,
             percentile: null,
+            statementCoverage: totalCoverage,
+            reportFilename: reportFilename,
           };
           let hardwareTotal = csvData.hardwareData
             .map(csvPair => csvPair[1])
@@ -120,7 +143,8 @@ function getCSVData(db, res, emulator, appName, category) {
               console.log("Assigned new test rating: " + rating);
               csvData.rating = rating;
               csvData.percentile = result[1];
-              db.saveEnergyResults(hardwareTotal, routineTotal, rating, category);
+              db.saveEnergyResults(hardwareTotal, routineTotal, rating,
+                category, totalCoverage);
               return resolve(csvData);
             });
           })
@@ -136,52 +160,47 @@ function getCSVData(db, res, emulator, appName, category) {
   });
 }
 
-function executeDroidMateInstrumentation(
-  db, res, appName, method,
-  app, monkeyrunnerScript, category, orkaParameters) {
-  return new Promise((resolve, reject) => {
+async function executeStatementCoverageInstrumentation(
+  appName, method,
+  app, monkeyrunnerScript, orkaParameters) {
+  return new Promise(async (resolve, reject) => {
     let instrumentationDir = "working/"+appName
-    instrumention.createWorkingDir(instrumentationDir, app);
+    let apkFilename = app.split("/").pop();
+    fileHandler.createWorkingDir(instrumentationDir);
 
-    // Instrument APK with DroidMate
-    instrumentProcess = instrumention.instrumentAPKToIncludeStatementCoverage(
-        instrumentationDir,
-        appFilename,
-    );
-    instrumentProcess.on('close', (exitCode) => {
-      console.log("Finished instrumenting apk");
-      let instrumentedApkFilepath = instrumentationDir + "/" +
-        appFilename.slice(0, -4) + "-instrumented.apk";
-      console.log("Looking for " + instrumentedApkFilepath);
-
-      // Check that the instrumented file exists
-      if (!fs.pathExistsSync(instrumentedApkFilepath)) {
-        msg = "Instrumented APK could not be found";
-        console.log(msg);
-        res.status(500);
-        res.send(msg);
-        return reject(msg);
-      }
-      orkaParameters.push(instrumentedApkFilepath);
-      return resolve(orkaParameters);
-    });
+    // Instrument APK for statement coverage
+    try {
+      instrumentedAPKFile = await instrumention.instrumentAPKToIncludeStatementCoverage(
+          instrumentationDir,
+          app,
+          apkFilename
+      );
+      orkaParameters = orkaParameters.concat(["--pickle",
+        instrumentationDir+"/metadata/"+apkFilename.slice(0,-4)+".pickle",
+        "--app", instrumentedAPKFile]);
+    } catch(err) {
+      console.log(err);
+      orkaParameters = orkaParameters.concat(["--app", app]);
+    }
+    return resolve(orkaParameters);
   });
 }
 
 async function setupOrkaParameters(
-  db, res, appName, method, app, monkeyrunnerScript, category,
+  appName, method, app, monkeyrunnerScript,
   statementCoverage, avd, port) {
     return new Promise(async (resolve, reject) => {
       let orkaParameters = ["vendor/orka/src/main.py","--skip-graph",
-        "--method", method, "--avd", avd, "--port", port, "--app"];
+        "--method", method, "--avd", avd, "--port", port];
       if (method == "Monkeyrunner") {
-        orkaParameters = orkaParameters.concat([app, "--mr", monkeyrunnerScript]);
-      } else if (method == "DroidMate-2" && statementCoverage) {
-        orkaParameters = await executeDroidMateInstrumentation(db, res,
-          appName, method, app,
-          monkeyrunnerScript, category, orkaParameters);
-      } else if (method == "DroidMate-2" && !statementCoverage) {
-        orkaParameters.push(app);
+        if (statementCoverage) {
+          orkaParameters = await executeStatementCoverageInstrumentation(
+            appName, method, app,
+            monkeyrunnerScript, orkaParameters);
+        }
+        orkaParameters = orkaParameters.concat(["--mr", monkeyrunnerScript]);
+      } else if (method == "DroidMate-2") {
+        orkaParameters = orkaParameters.concat(["--app", app]);
       }
       return resolve(orkaParameters);
     });

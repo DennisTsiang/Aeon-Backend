@@ -2,29 +2,46 @@ var spawn = require("child_process").spawn;
 var execSync = require("child_process").execSync;
 var fs = require('fs-extra');
 
-function instrumentAPKToIncludeStatementCoverage(apkDir, apkFilename) {
-  let parameters = ["-jar", "vendor/orka/dependencies/DM-2-mod.jar",
-    "--Exploration-apksDir="+apkDir, "--ExecutionMode-explore=false",
-    "--ExecutionMode-coverage=true"]
-  const droidMateInstrumentatorProcess = spawn('java', parameters);
-  droidMateInstrumentatorProcess.stdout.setEncoding('utf-8');
-  droidMateInstrumentatorProcess.stdout.on('data', function(data) {
-    console.log(data);
-  });
-  return droidMateInstrumentatorProcess;
-}
+const ACV_INSTRUMENTED_APK_DIR = "/home/den/acvtool/"
 
-function createWorkingDir(instrumentationDir, app) {
-  if (fs.existsSync(instrumentationDir)) {
-    fs.removeSync(instrumentationDir);
-  }
-  fs.mkdirSync(instrumentationDir);
-  // Copy apk file over
-  appFilename= app.split("/").slice(-1)[0];
-  fs.copyFileSync(app, instrumentationDir+"/"+appFilename);
+function instrumentAPKToIncludeStatementCoverage(
+  instrumentationDir,
+  appPath,
+  apkFilename
+) {
+  return new Promise((resolve, reject) => {
+    let parameters = ["instrument", appPath,
+      "-f", "--wd", instrumentationDir]
+    console.log("calling avc " + parameters.join(" "));
+    const instrumentProcess = spawn('acv', parameters);
+    instrumentProcess.stdout.setEncoding('utf-8');
+    instrumentProcess.stdout.on('data', function(data) {
+      console.log(data);
+    });
+    instrumentProcess.stderr.on('data', function(data) {
+      if (Buffer.isBuffer(data)) {
+        console.log(data.toString());
+      } else {
+        console.log(data);
+      }
+    });
+
+    instrumentProcess.on('close', (exitCode) => {
+      console.log("Finished instrumenting apk");
+      let instrumentedApkFilepath = instrumentationDir + "/" +
+        "instr_"+apkFilename;
+      console.log("Looking for " + instrumentedApkFilepath);
+
+      // Check that the instrumented file exists
+      if (!fs.pathExistsSync(instrumentedApkFilepath)) {
+        msg = "Instrumented APK could not be found";
+        return reject(msg);
+      }
+      return resolve(instrumentedApkFilepath);
+    });
+  });
 }
 
 module.exports = {
   instrumentAPKToIncludeStatementCoverage: instrumentAPKToIncludeStatementCoverage,
-  createWorkingDir: createWorkingDir
 }

@@ -61,6 +61,7 @@ app.use((req, res, next) => {
     res.append('Access-Control-Allow-Origin', ['*']);
     res.append('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
     res.append('Access-Control-Allow-Headers', 'Cache-Control, Content-Type, x-requested-with');
+    res.append('Content-Security-Policy', "default-src 'unsafe-eval' localhost:8081; default-src 'unsafe-inline' localhost:8081");
     next();
 });
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -92,6 +93,20 @@ app.post('/clear', async function(req, res) {
   let filePaths = fileHandler.completePaths(req.body);
   let deleteSuccess = await fileHandler.deleteFiles(filePaths);
   res.send(deleteSuccess);
+});
+
+app.get('/reports/:id', async function (req, res) {
+  console.log("Received coverage report download request for " + req.params.id);
+  let fileAndSize = await fileHandler.retrieveFile("reports/"+req.params.id);
+  let file = fileAndSize[0];
+  let size = fileAndSize[1];
+  res.writeHead(200, {
+    'Content-Type': 'application/gzip',
+    'Content-Length': size,
+    'Content-Disposition': 'attachment; filename='+req.params.id
+  });
+  res.write(file, 'binary');
+  res.end();
 });
 
 
