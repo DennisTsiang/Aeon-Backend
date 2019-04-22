@@ -7,6 +7,7 @@ var fs = require('fs-extra');
 var ratings = require('./ratings');
 var instrumention = require('./instrumentation');
 var fileHandler = require('./fileHandler');
+var profile = require('./profile');
 
 const APP_DIRECTORY = "uploads/apps/";
 const SCRIPT_DIRECTORY = "uploads/monkeyrunner_scripts/";
@@ -29,7 +30,7 @@ async function evaluateEnergy(res, parameters, db) {
 
     console.log("Calling setupOrkaParameters");
     // Execute Orka Process
-    let orkaParameters = await setupOrkaParameters(appName, method,
+    let orkaParameters = await setupOrkaParameters(appName, method, category,
       app, monkeyrunnerScript, statementCoverage, avd, port);
     await executeOrkaProcess(db, res, appName, method, app, monkeyrunnerScript,
       category, orkaParameters);
@@ -161,7 +162,7 @@ function getCSVData(db, res, emulator, appName, category) {
 }
 
 async function executeStatementCoverageInstrumentation(
-  appName, method,
+  appName, method, category,
   app, monkeyrunnerScript, orkaParameters) {
   return new Promise(async (resolve, reject) => {
     let instrumentationDir = "working/"+appName
@@ -187,7 +188,7 @@ async function executeStatementCoverageInstrumentation(
 }
 
 async function setupOrkaParameters(
-  appName, method, app, monkeyrunnerScript,
+  appName, method, category, app, monkeyrunnerScript,
   statementCoverage, avd, port) {
     return new Promise(async (resolve, reject) => {
       let orkaParameters = ["vendor/orka/src/main.py","--skip-graph",
@@ -201,6 +202,8 @@ async function setupOrkaParameters(
         orkaParameters = orkaParameters.concat(["--mr", monkeyrunnerScript]);
       } else if (method == "DroidMate-2") {
         orkaParameters = orkaParameters.concat(["--app", app]);
+        orkaParameters = orkaParameters
+          .concat(profile.appendTestProfile(category));
       }
       return resolve(orkaParameters);
     });
