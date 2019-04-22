@@ -46,6 +46,7 @@ function getCSVData(db, res, emulator, appName, category) {
     let apiData = null;
     let totalCoverage = null;
     let reportFilename = null;
+    let sourcelineFeedbackFilename = null;
     async.parallel([
       function (callback) {
         fs.readFile("vendor/orka/results_"+emulator+"/"+appName+"/hardwareCosts.csv",
@@ -111,6 +112,25 @@ function getCSVData(db, res, emulator, appName, category) {
             callback();
           })
       },
+      function(callback) {
+        inputFilepath = "vendor/orka/results_"+emulator+"/"+appName+
+          "/sourcelineFeedback.txt";
+        fs.access(inputFilepath, fs.constants.R_OK,
+          (err) => {
+            if (err) {
+              console.log("No source line feedback data found")
+              callback();
+              return;
+            }
+            let outputFilename = appName+Date.now()+"_srcf.txt";
+            let outputFilepath = `sourcelineFeedbacks/${outputFilename}`;
+            cmd = `mv ${inputFilepath} ${outputFilepath}`;
+            console.log("Running cmd: " + cmd);
+            let stdout = execSync(cmd);
+            sourcelineFeedbackFilename = outputFilename;
+            callback();
+          })
+      },
     ], function(err) {
           if (err) {
             res.status(500);
@@ -126,6 +146,7 @@ function getCSVData(db, res, emulator, appName, category) {
             percentile: null,
             statementCoverage: totalCoverage,
             reportFilename: reportFilename,
+            sourcelineFeedbackFilename: sourcelineFeedbackFilename
           };
           let hardwareTotal = csvData.hardwareData
             .map(csvPair => csvPair[1])
@@ -162,7 +183,7 @@ function getCSVData(db, res, emulator, appName, category) {
 }
 
 async function executeStatementCoverageInstrumentation(
-  appName, method, category,
+  appName, method,
   app, monkeyrunnerScript, orkaParameters) {
   return new Promise(async (resolve, reject) => {
     let instrumentationDir = "working/"+appName

@@ -109,6 +109,21 @@ app.get('/reports/:id', async function (req, res) {
   res.end();
 });
 
+app.get('/sourcelinefeedback/:filename', async function (req, res) {
+  console.log("Received sourceline feedback download request for " +
+    req.params.filename);
+  let fileAndSize = await fileHandler
+    .retrieveFile("sourcelineFeedbacks/"+req.params.filename);
+  let file = fileAndSize[0];
+  let size = fileAndSize[1];
+  res.writeHead(200, {
+    'Content-Type': 'text/plain',
+    'Content-Length': size,
+    'Content-Disposition': 'attachment; filename='+req.params.filename
+  });
+  res.write(file, 'binary');
+  res.end();
+});
 
 var server = app.listen(8081, function () {
    var host = server.address().address;
