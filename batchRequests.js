@@ -40,8 +40,9 @@ async function evaluateAllEnergyRequests(res, db, energyRequests) {
           // will be caught by retry method
           throw new Error();
         } else {
-          console.log(requestsQueue);
-          await retry(async bail => {
+          console.log("Requests queue:\n" + requestsQueue);
+          await retry(async (bail, attemptNumber) => {
+            console.log(`Attempt number ${attemptNumber}`);
             let nextFreeAVD = await getNextFreeAVD();
             if (!nextFreeAVD) {
               throw new Error();
@@ -50,15 +51,28 @@ async function evaluateAllEnergyRequests(res, db, energyRequests) {
             parameters.appName = appName;
             parameters.app = app;
             console.log(parameters);
-            let csvData = await energyEvaluator.evaluateEnergy(res, parameters, db);
-            console.log("Finished Orka");
-            await appendNextFreeAVD(nextFreeAVD);
-            console.log("Finished appending next free AVD");
-            await removeRequestFromQueue(appName);
-            console.log("Finished removing from queue");
-            return resolve(csvData);
+            let err = null;
+            let csvData = null;
+            try {
+              csvData = await energyEvaluator.evaluateEnergy(res, parameters, db);
+            } catch (rejectErr){
+              err = rejectErr;
+            } finally {
+              console.log("Finished Orka");
+              await appendNextFreeAVD(nextFreeAVD);
+              console.log("Finished appending next free AVD");
+              await removeRequestFromQueue(appName);
+              console.log("Finished removing from queue");
+              if (err) {
+                return resolve(null);
+              }
+              return resolve(csvData);
+            }
           }, {
             forever: true,
+            onRetry: (err) => {
+              console.log(err);
+            },
           });
         }
       }, {
@@ -70,7 +84,9 @@ async function evaluateAllEnergyRequests(res, db, energyRequests) {
   for (let promise of listOfEnergyRequestPromises) {
     try {
       const csvData = await promise;
-      csvDataResults.push(csvData);
+      if (csvData != null) {
+        csvDataResults.push(csvData);
+      }
     } catch (err) {
 
     }

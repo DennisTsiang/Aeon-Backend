@@ -9,6 +9,9 @@ python vendor/orka/src/main.py --skip-graph --method Monkeyrunner --app uploads/
 
 ANDROID_HOME/platform-tools/adb/ shell "echo \$EPOCHREALTIME; cat proc/net/xt_qtaguid/stats" | awk "NR==1 || /u0a96/
 
+$ANDROID_HOME/platform-tools/adb logcat -c && $ANDROID_HOME/platform-tools/adb logcat -v threadtime orka:I AndroidRuntime:E *:S > logcat.txt
+
+
 Database
 psql boostergy
 
@@ -19,3 +22,5 @@ Add column to table
 ALTER TABLE reddit_browsers ADD statementCoverage DOUBLE PRECISION;
 
 cd vendor/orka/results_Nexus_5X_API_24/An.stop/An.stop/report/ && tar -zcvf An.stop1555674891443.tar.gz . && cd - && mv An.stop1555674891443.tar.gz reports/
+
+jarsigner -keystore /home/den/Documents/Individual_Project/Boostergy/server/vendor/orka/dependencies/debug.keystore /home/den/Documents/Individual_Project/Boostergy/server/vendor/orka/working/com.andrewshu.android.reddit/dist/orka.apk androiddebugkey -storepass android

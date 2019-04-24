@@ -34,8 +34,12 @@ async function evaluateEnergy(res, parameters, db) {
       app, monkeyrunnerScript, statementCoverage, avd, port);
     await executeOrkaProcess(db, res, appName, method, app, monkeyrunnerScript,
       category, orkaParameters);
-    let csvData = await getCSVData(db, res, avd, appName, category);
-    return resolve(csvData);
+    try {
+      let csvData = await getCSVData(db, res, avd, appName, category);
+      return resolve(csvData);
+    } catch (err) {
+      return reject();
+    }
     //res.send(csvData);
   });
 }
@@ -133,8 +137,7 @@ function getCSVData(db, res, emulator, appName, category) {
       },
     ], function(err) {
           if (err) {
-            res.status(500);
-            res.send("Error retrieving csv data");
+            console.log("Error retrieving csv data");
             return reject();
           }
           apiData.sort((a,b) => b[1] - a[1]);
@@ -219,6 +222,8 @@ async function setupOrkaParameters(
           orkaParameters = await executeStatementCoverageInstrumentation(
             appName, method, app,
             monkeyrunnerScript, orkaParameters);
+        } else {
+          orkaParameters = orkaParameters.concat(["--app", app]);
         }
         orkaParameters = orkaParameters.concat(["--mr", monkeyrunnerScript]);
       } else if (method == "DroidMate-2") {
