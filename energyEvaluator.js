@@ -26,7 +26,7 @@ async function evaluateEnergy(res, parameters, db) {
     let port = parameters.AVD.port;
     let appName = parameters.appName;
 
-    let statementCoverage = true;
+    let statementCoverage = false;
 
     console.log("Calling setupOrkaParameters");
     // Execute Orka Process

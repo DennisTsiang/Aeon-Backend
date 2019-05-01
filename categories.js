@@ -1,5 +1,6 @@
 const specificCategories = [
-  "Alarm Clocks", "Dictionary", "Reddit Browsers", "Web Browsers"
+  "Alarm Clocks", "Dictionary", "Reddit Browsers", "Web Browsers",
+  "Email Clients"
 ];
 
 const generalCategories = [
