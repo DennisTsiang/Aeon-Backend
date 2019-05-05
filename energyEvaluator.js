@@ -7,7 +7,6 @@ var fs = require('fs-extra');
 var ratings = require('./ratings');
 var instrumention = require('./instrumentation');
 var fileHandler = require('./fileHandler');
-var profile = require('./profile');
 
 const APP_DIRECTORY = "uploads/apps/";
 const SCRIPT_DIRECTORY = "uploads/monkeyrunner_scripts/";
@@ -26,7 +25,7 @@ async function evaluateEnergy(res, parameters, db) {
     let port = parameters.AVD.port;
     let appName = parameters.appName;
 
-    let statementCoverage = false;
+    let statementCoverage = parameters.statementCoverage;
 
     console.log("Calling setupOrkaParameters");
     // Execute Orka Process
@@ -51,6 +50,7 @@ function getCSVData(db, res, emulator, appName, category) {
     let totalCoverage = null;
     let reportFilename = null;
     let sourcelineFeedbackFilename = null;
+    let runtime = null;
     async.parallel([
       function (callback) {
         fs.readFile("vendor/orka/results_"+emulator+"/"+appName+"/hardwareCosts.csv",
@@ -107,9 +107,10 @@ function getCSVData(db, res, emulator, appName, category) {
             totalCoverage = data.toString().trim();
             let archiveFilename = appName + Date.now() + ".tar.gz";
             let output = `reports/${archiveFilename}`;
-            cmd = `tar -zcvf ${archiveFilename} -C vendor/orka/results_` +
-                  `${emulator}/${appName}/${appName}/ report ` +
-                  `&& mv ${archiveFilename} ${output}`;
+            let workingDir = `vendor/orka/results_${emulator}/${appName}/${appName}/`;
+            cmd = `tar -zcvf ${archiveFilename} -C ${workingDir} report ` +
+                  `&& mv ${archiveFilename} ${output} ` +
+                  `&& rm -rf ${workingDir}`;
             console.log("Running cmd: " + cmd);
             let stdout = execSync(cmd);
             reportFilename = archiveFilename;
@@ -135,6 +136,20 @@ function getCSVData(db, res, emulator, appName, category) {
             callback();
           })
       },
+      function(callback) {
+        fs.readFile("vendor/orka/results_"+emulator+"/"+appName+"/run1"+
+          "/runtime.txt",
+          (err, data) => {
+            if (err || !data) {
+              console.log("No runtime data found")
+              callback();
+              return;
+            }
+            runtime = data.toString().trim();
+            callback();
+          })
+
+      }
     ], function(err) {
           if (err) {
             console.log("Error retrieving csv data");
@@ -149,7 +164,8 @@ function getCSVData(db, res, emulator, appName, category) {
             percentile: null,
             statementCoverage: totalCoverage,
             reportFilename: reportFilename,
-            sourcelineFeedbackFilename: sourcelineFeedbackFilename
+            sourcelineFeedbackFilename: sourcelineFeedbackFilename,
+            runtime: runtime
           };
           let hardwareTotal = csvData.hardwareData
             .map(csvPair => csvPair[1])
@@ -227,9 +243,8 @@ async function setupOrkaParameters(
         }
         orkaParameters = orkaParameters.concat(["--mr", monkeyrunnerScript]);
       } else if (method == "DroidMate-2") {
-        orkaParameters = orkaParameters.concat(["--app", app]);
-        orkaParameters = orkaParameters
-          .concat(profile.appendTestProfile(category));
+        orkaParameters = orkaParameters.concat(["--app", app, "--category",
+          category]);
       }
       return resolve(orkaParameters);
     });

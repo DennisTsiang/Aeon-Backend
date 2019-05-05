@@ -24,3 +24,7 @@ ALTER TABLE reddit_browsers ADD statementCoverage DOUBLE PRECISION;
 cd vendor/orka/results_Nexus_5X_API_24/An.stop/An.stop/report/ && tar -zcvf An.stop1555674891443.tar.gz . && cd - && mv An.stop1555674891443.tar.gz reports/
 
 jarsigner -keystore /home/den/Documents/Individual_Project/Boostergy/server/vendor/orka/dependencies/debug.keystore /home/den/Documents/Individual_Project/Boostergy/server/vendor/orka/working/com.andrewshu.android.reddit/dist/orka.apk androiddebugkey -storepass android
+
+acv start com.onelouder.baconreader -q -d emulator-5554
+acv stop com.onelouder.baconreader -q -d emulator-5554
+acv report -p -o -html com.onelouder.baconreader
