@@ -1,7 +1,16 @@
-function processResults(data, newTestTotalEnergy) {
+var baselines = require('./baselines.js');
+
+function processResults(data, newTestTotalEnergy, method, category) {
   return new Promise(resolve => {
+    let labels = null;
     let total_energies = getTotalEnergies(data);
-    let labels = assignEfficiencyClasses(total_energies, 5);
+    if (method == 'DroidMate-2' &&
+        baselines.getBaseline(category) != undefined) {
+      labels = assignEfficiencyClassesFromBaseline(
+        baselines.getBaseline(category), 5);
+    } else {
+      labels = assignEfficiencyClasses(total_energies, 5);
+    }
     let rating = assignRating(labels, newTestTotalEnergy);
     let percentile = computePercentile(total_energies, newTestTotalEnergy);
     resolve([rating, percentile]);
@@ -37,6 +46,20 @@ function assignEfficiencyClasses(total_energies, numberOfClasses) {
     let ACharCode = 65;
     let label = String.fromCharCode(i + ACharCode);
     labels.push({label: label, lowerBound: bottomOutlierBoundary + i*width});
+  }
+  console.log(labels);
+  return labels;
+}
+
+function assignEfficiencyClassesFromBaseline(baseline, numberOfClasses) {
+  let labels = [];
+  let ACharCode = 65;
+  for (var i=0; i < numberOfClasses; i++) {
+    let label = String.fromCharCode(i + ACharCode);
+    labels.push({
+      label: label,
+      lowerBound: baseline.baseline - Math.floor(numberOfClasses / 2) * baseline.width + i * baseline.width,
+    });
   }
   console.log(labels);
   return labels;

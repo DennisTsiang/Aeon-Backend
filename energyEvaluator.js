@@ -34,7 +34,7 @@ async function evaluateEnergy(res, parameters, db) {
     await executeOrkaProcess(db, res, appName, method, app, monkeyrunnerScript,
       category, orkaParameters);
     try {
-      let csvData = await getCSVData(db, res, avd, appName, category);
+      let csvData = await getCSVData(db, res, avd, appName, category, method);
       return resolve(csvData);
     } catch (err) {
       return reject();
@@ -43,7 +43,7 @@ async function evaluateEnergy(res, parameters, db) {
   });
 }
 
-function getCSVData(db, res, emulator, appName, category) {
+function getCSVData(db, res, emulator, appName, category, method) {
   return new Promise((resolve, reject) => {
     let hardwareData = null;
     let apiData = null;
@@ -178,7 +178,8 @@ function getCSVData(db, res, emulator, appName, category) {
           db.getEnergyResultsByCategory(category)
           .then(data => {
             console.log("Successfully retrieved energy results");
-            ratings.processResults(data, hardwareTotal + routineTotal)
+            ratings.processResults(data, hardwareTotal + routineTotal, method,
+              category)
             .then(result => {
               let rating = result[0];
               console.log("Assigned new test rating: " + rating);
@@ -231,7 +232,7 @@ async function setupOrkaParameters(
   appName, method, category, app, monkeyrunnerScript,
   statementCoverage, avd, port) {
     return new Promise(async (resolve, reject) => {
-      let orkaParameters = ["vendor/orka/src/main.py","--skip-graph",
+      let orkaParameters = ["vendor/orka/src/main.py", "--skip-graph",
         "--method", method, "--avd", avd, "--port", port];
       if (method == "Monkeyrunner") {
         if (statementCoverage) {
