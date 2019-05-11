@@ -175,7 +175,7 @@ function getCSVData(db, res, emulator, appName, category, method) {
             .reduce((x,y) => x+y, 0);
           console.log("hardware total:"+hardwareTotal);
           console.log("routine total:"+routineTotal);
-          db.getEnergyResultsByCategory(category)
+          db.getEnergyResultsByCategory(category, totalCoverage, runtime)
           .then(data => {
             console.log("Successfully retrieved energy results");
             ratings.processResults(data, hardwareTotal + routineTotal, method,
@@ -186,7 +186,7 @@ function getCSVData(db, res, emulator, appName, category, method) {
               csvData.rating = rating;
               csvData.percentile = result[1];
               db.saveEnergyResults(hardwareTotal, routineTotal, rating,
-                category, totalCoverage);
+                category, totalCoverage, runtime);
               return resolve(csvData);
             });
           })
