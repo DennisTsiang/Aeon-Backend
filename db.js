@@ -41,8 +41,10 @@ function getEnergyResultsByCategory(categoryValue, statementCoverage, timeTaken)
     return db.any(`SELECT * FROM ${table} WHERE statementCoverage >= `+
       `${statementCoverage}-10 AND statementCoverage <= ${statementCoverage}+10`);
   } else if (timeTaken != null) {
-    return db.any(`SELECT * FROM ${table} WHERE `+
-      `timeTaken >= ${timeTaken}-20 AND timeTaken <= ${timeTaken}+20`);
+    let sql = `SELECT * FROM ${table} WHERE `+
+      `timeTaken >= ${timeTaken}-20 AND timeTaken <= ${timeTaken}+20`;
+    console.log(sql);
+    return db.any(sql);
   } else {
     return db.any('SELECT * FROM '+table)
   }

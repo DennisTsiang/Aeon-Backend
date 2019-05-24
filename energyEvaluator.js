@@ -212,6 +212,7 @@ async function executeStatementCoverageInstrumentation(
 
     // Instrument APK for statement coverage
     try {
+      console.time("ACVTool");
       instrumentedAPKFile = await instrumention.instrumentAPKToIncludeStatementCoverage(
           instrumentationDir,
           app,
@@ -220,6 +221,7 @@ async function executeStatementCoverageInstrumentation(
       orkaParameters = orkaParameters.concat(["--pickle",
         instrumentationDir+"/metadata/"+apkFilename.slice(0,-4)+".pickle",
         "--app", instrumentedAPKFile]);
+      console.timeEnd("ACVTool");
     } catch(err) {
       console.log(err);
       orkaParameters = orkaParameters.concat(["--app", app]);

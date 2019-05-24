@@ -90,14 +90,15 @@ function computePercentile(totalEnergies, newTestTotalEnergy) {
 }
 
 function medianIndex(startIndex, endIndex) {
-  let length = endIndex - startIndex + 1;
+  let length = (endIndex - startIndex) + 1;
   let offsetFromStart = (length + 1)/2 - 1;
   return Math.floor(offsetFromStart) + startIndex;
 }
 
 function median(array, startIndex, endIndex) {
   let index = medianIndex(startIndex, endIndex);
-  if (array.length % 2 == 0) {
+  let length = (endIndex - startIndex) + 1;
+  if (length % 2 == 0) {
     return (array[index] + array[index+1]) / 2;
   } else {
     return array[index];
@@ -105,7 +106,10 @@ function median(array, startIndex, endIndex) {
 }
 
 function interquartileRange(array) {
-  array.sort();
+  if (array.length == 1) {
+    return [array[0], array[0], 0];
+  }
+  array.sort((a, b) => a - b);
   let index = medianIndex(0, array.length-1);
   let q1 = median(array, 0, index);
   let q3 = median(array, index+1, array.length-1);
