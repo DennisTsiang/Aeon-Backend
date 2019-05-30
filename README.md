@@ -9,9 +9,9 @@ Requires Node v8.9.4 and Npm v6.9.0 to be installed.
 
 Run `npm install` to install dependencies.
 
-git clone ACVTool from https://github.com/DennisTsiang/acvtool and place in a folder called vendor
+git clone ACVTool from https://github.com/DennisTsiang/acvtool and install in a folder called vendor
 
-git clone Orka from https://github.com/DennisTsiang/orka and place in vendor folder too.
+git clone Orka from https://github.com/DennisTsiang/orka and install in vendor folder too.
 
 Create a PostgreSQL database and populate it with tables corresponding to the
 categories you want. Example table schema can be found in `create_tables.sh`.
