@@ -1,7 +1,7 @@
 {
   "name": "server",
   "version": "1.0.0",
-  "description": "Server backend for Boostergy for REST API calls",
+  "description": "Server backend for Aeon for REST API calls",
   "main": "server.js",
   "dependencies": {
     "async": "^2.6.1",
